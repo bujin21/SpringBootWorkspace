@@ -10,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,57 +28,59 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain filterChain(
-			HttpSecurity http 
-			//JWTAutenticationFilter jwtFilter,
-			//OAuth2Service service,
-			//OAuth2SuccessHandler handler
+			HttpSecurity http ,
+			JWTAutenticationFilter jwtFilter,
+			 OAuth2Service service,
+			 OAuth2SuccessHandler handler
 			) throws Exception {
 		http
-			.cors(cors -> cors.configurationSource(corsConfiquConfigurationSource()))
+			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 			.csrf(csrf -> csrf.disable())
-			.exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
-				//인가실패시 401에러
-				res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED");
+			.exceptionHandling(e-> e.authenticationEntryPoint((req, res, ex)-> {
+				// 인증실패시 401에러
+				res.sendError(HttpServletResponse.SC_UNAUTHORIZED,"UNAUTHORIZED");
 			})
 			.accessDeniedHandler((req, res, ex) -> {
-				//인가실패시 403에러
+				// 인가실패시 403에러
 				res.sendError(HttpServletResponse.SC_FORBIDDEN,"FORBIDDEN");
 			}))
-			.sessionManagement(management ->
+			.sessionManagement( management -> 
 				management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			//. oauth2인증설정
-			.authorizeRequests( auth -> 
+			.oauth2Login( oauth -> oauth
+					.userInfoEndpoint( u -> u.userService(service))
+					.successHandler(handler)
+					)
+			.authorizeHttpRequests( auth ->
 					auth
-						.requestMatchers("/auth/login", "/auth/signup", "/auth/logout", "/auth/refresh").permitAll()
-						.requestMatchers("/oauth2/**", "login**", "/error").permitAll()
-						.requestMatchers("/**").authenticated()
-						
+					.requestMatchers("/auth/login","/auth/signup","/auth/logout","/auth/refresh").permitAll()
+					.requestMatchers("/oauth2/**","/login**","/error").permitAll()
+					.requestMatchers("/**").authenticated()
 			);
+		http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);		
 		
-		return http.build();
-			
-		
+		return http.build();		
 	}
-	//CORS설정정보를 가진 빈객체
-	public CorsConfigurationSource corsConfiquConfigurationSource() {
+	
+	// CORS설정정보를 가진 빈객체
+	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
 		
 		// 허용 Origin설정
 		config.setAllowedOrigins(List.of("http://localhost:3000"));
 		
 		// 허용 메서드 설정
-		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
+		config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE"));
 		// 허용 헤더설정
 		config.setAllowedHeaders(List.of("*"));
-		config.setExposedHeaders(List.of("Location", "Authorization"));
-		config.setAllowCredentials(true);//세션, 쿠키 허용 설정
+		config.setExposedHeaders(List.of("Location","Authorization"));
+		config.setAllowCredentials(true);//세션,쿠키 허용설정
 		config.setMaxAge(3600L);
 		
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", config);
 		
 		return source;
-		
 	}
 	
 	
