@@ -58,7 +58,7 @@ public class OAuth2Service implements OAuth2UserService<OAuth2UserRequest, OAuth
 		Map<String, Object> attributes = oAuth2User.getAttributes();
 		String provider = userRequest
 							.getClientRegistration().getRegistrationId();
-		String provierUserId = String.valueOf(attributes.get("id"));
+		String providerUserId = String.valueOf(attributes.get("id"));
 		String accessToken = userRequest
 								.getAccessToken().getTokenValue();
 		
@@ -68,7 +68,9 @@ public class OAuth2Service implements OAuth2UserService<OAuth2UserRequest, OAuth
 			Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
 			
 			// 데이터베이스에서 회원정보 조회
-			User user = authDao.findUserByEmail(email);
+			//User user = authDao.findUserByEmail(email);
+			Map<String, Object> param = Map.of("provider", provider, "providerId", providerUserId);
+			User user = authDao.findUserByProvider(param);
 			
 			if(user == null) {
 				// 새로운 사용자인 경우 자동회원가입
@@ -82,7 +84,7 @@ public class OAuth2Service implements OAuth2UserService<OAuth2UserRequest, OAuth
 				// 유저 소셜정보
 				UserIdentities userIdentities = UserIdentities.builder()
 													.provider(provider)
-													.providerUserId(provierUserId)
+													.providerUserId(providerUserId)
 													.accessToken(accessToken)
 													.userId(user.getId())
 													.build();
@@ -99,7 +101,7 @@ public class OAuth2Service implements OAuth2UserService<OAuth2UserRequest, OAuth
 			// 이미 회원가입은 된 경우 => 로그인 처리
 			UserIdentities userIdentities = UserIdentities.builder()
 												.provider(provider)
-												.providerUserId(provierUserId)
+												.providerUserId(providerUserId)
 												.accessToken(accessToken)
 												.build();
 			authDao.updateUserIdentities(userIdentities);
